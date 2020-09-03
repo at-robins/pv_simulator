@@ -1,0 +1,13 @@
+[package]
+name = "pv_simulator"
+version = "0.1.0"
+authors = ["at-robins <30956028+at-robins@users.noreply.github.com>"]
+edition = "2018"
+
+[dependencies]
+amiquip = { version = "0.3", default-features = false }
+chrono = { version = "0.4", features = ["serde"] }
+rand = "0.7"
+serde = "1.0"
+serde_json = "1.0"
+serial_test = "0.5"
