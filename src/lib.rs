@@ -1,9 +1,6 @@
 extern crate chrono;
 extern crate serial_test;
 
-pub use meter::{BrokerMessage, METER_ROUTING_KEY};
-pub use pv_error::PvError;
-
 use chrono::Duration;
 use meter::Meter;
 use photovoltaic_simulator::PvSimulator;
@@ -83,7 +80,7 @@ pub fn simulate_pv_and_write_results_to_file<U: Into<String>, P: AsRef<Path>>(
 ///
 /// * `first` - the first floating point number
 /// * `second` - the second floating point number
-fn float_compare_non_exact(first: f64, second: f64) -> bool {
+pub fn float_compare_non_exact(first: f64, second: f64) -> bool {
     // Naive implementation for this specific simulation.
     // Precision for at least 6 decimal places is required.
     // Corner cases are irrelevant for this simulation as
@@ -122,17 +119,17 @@ mod tests {
         for (i, record) in records.iter().enumerate() {
             // The check is only performed at second precision since there is a small
             // delay between creation of reference and tested simulated time.
-            assert_eq!(record.time_stamp().timestamp(), time_stamps[i].timestamp());
+            assert_eq!(record._time_stamp().timestamp(), time_stamps[i].timestamp());
             // Power consumption must be between 0 and 9000 watt.
-            assert!(record.power_consumption() <= 9000.0 && record.power_consumption() >= 0.0);
+            assert!(record._power_consumption() <= 9000.0 && record._power_consumption() >= 0.0);
             // Th diagram showed a rough output range of 0 to 3500 watt.
-            assert!(record.power_output() <= 3500.0 && record.power_output() >= 0.0);
+            assert!(record._power_output() <= 3500.0 && record._power_output() >= 0.0);
             // Power consumption and ouput are sign-inverse and it was not specified if total
             // output or consumption is to be computed, so the absolute difference of both
             // values is compared with 6 decimal places of precision.
             assert!(float_compare_non_exact(
-                record.total_power_output().abs(),
-                (record.power_output() - record.power_consumption()).abs()
+                record._total_power_output().abs(),
+                (record._power_output() - record._power_consumption()).abs()
             ))
         }
         // Remove the test output file.

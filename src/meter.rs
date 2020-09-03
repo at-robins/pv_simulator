@@ -5,7 +5,7 @@ use amiquip::{Connection, Exchange, Publish};
 use chrono::{DateTime, Utc};
 use rand::{Rng, thread_rng};
 use serde::{Deserialize, Serialize};
-use super::PvError;
+use super::pv_error::PvError;
 use super::SimulatedDateTime;
 
 /// The routing key for the RabbitMQ message broker.

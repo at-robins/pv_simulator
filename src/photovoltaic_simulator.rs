@@ -7,7 +7,8 @@ use rand::{Rng, thread_rng};
 use serde::{Deserialize, Serialize};
 use std::fs::{create_dir_all, File};
 use std::path::Path;
-use super::{BrokerMessage, METER_ROUTING_KEY, PvError};
+use super::meter::{BrokerMessage, METER_ROUTING_KEY};
+use super::pv_error::PvError;
 
 /// A `PvSimulator` that mimics power output of a photovoltaic system.
 #[derive(Debug, PartialEq, Clone)]
@@ -64,6 +65,12 @@ impl PvSimulator {
         Ok(())
     }
 
+    /// Writes all observed `Record`s to the specified file.
+    /// Fails if the file or its parent directory cannot be created.
+    ///
+    /// # Parameters
+    ///
+    /// * `path` - the path to the output file
     pub fn write_records_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), PvError> {
         // Make sure there is a last path component that can be written to.
         let parent_directory = path.as_ref()
@@ -187,23 +194,23 @@ impl Record {
     }
 
     // Returns the time stamp of this `Record`.
-    pub fn time_stamp(&self) -> DateTime<Utc> {
+    pub fn _time_stamp(&self) -> DateTime<Utc> {
         self.time_stamp
     }
 
     // Returns the power consumption of this `Record` indicated by the corrsponding `Meter`.
-    pub fn power_consumption(&self) -> f64 {
+    pub fn _power_consumption(&self) -> f64 {
         self.meter_power_consumption
     }
 
     // Returns the power output of this `Record` indicated by the corrsponding `PvSimulator`.
-    pub fn power_output(&self) -> f64 {
+    pub fn _power_output(&self) -> f64 {
         self.pv_power_output
     }
 
     // Returns the total power output of this `Record` indicated by the corrsponding `Meter`
     // and `PvSimulator`.
-    pub fn total_power_output(&self) -> f64 {
+    pub fn _total_power_output(&self) -> f64 {
         self.total_power_output
     }
 }
@@ -279,7 +286,27 @@ mod tests {
     /// * `simulated` - the simulation result
     /// * `expected` - the reference obtained from the diagramm in the exercise's description
     fn float_compare_pv_power_output(simulated: f64, expected: f64) -> bool {
-        // Allow some variance.
+        // Allow 10% variance.
         (1.0 - (simulated / expected)).abs() <= 0.1
+    }
+
+    #[test]
+    /// Tests if the function `float_compare_pv_power_output` compares power output values
+    /// in a similar range correctly.
+    fn test_float_compare_pv_power_output() {
+        // Test similar values.
+        {
+            let a = 3400.0;
+            let b = 3200.0;
+            assert!(a != b);
+            assert!(float_compare_pv_power_output(a, b));
+        }
+        // Test different values.
+        {
+            let a = 1750.0;
+            let b = 2500.0;
+            assert!(a != b);
+            assert!(!float_compare_pv_power_output(a, b));
+        }
     }
 }
