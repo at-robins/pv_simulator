@@ -63,9 +63,17 @@ impl Meter {
         let mut connection = Connection::insecure_open(&self.broker_url)?;
         let channel = connection.open_channel(None)?;
         let exchange = Exchange::direct(&channel);
-        for time_point in simulation_time {
+        let total_messages = simulation_time.count();
+        // Notify roughly every 5%.
+        let notification_threshold = total_messages / 20;
+        for (message_index, time_point) in simulation_time.enumerate() {
             let message = self.sample_message(time_point)?;
             self.publish_to_broker(message, &exchange)?;
+            // Print a notification on how the status of the simulation.
+            if (message_index + 1) % notification_threshold == 0 {
+                let percent_completion = (message_index + 1) as f64 / total_messages as f64 * 100.0;
+                println!("    Simulation at {:.2}%", percent_completion);
+            }
         }
         // Notifies clients that the simulation has finished.
         self.publish_to_broker(BrokerMessage::simulation_end_message(), &exchange)?;
@@ -190,7 +198,8 @@ mod tests {
     #[test]
     #[serial]
     /// Tests if the function `publish_samples_to_broker_until` of the `Meter` struct
-    /// correctly sends messages to the broker. Indirectly test `publish_to_broker`.
+    /// correctly sends messages to the broker. Indirectly tests `publish_to_broker`
+    /// and `sample_message`.
     fn test_meter_publish_samples_to_broker_until() {
         let upper_bound = 10.0;
         let url = "amqp://guest:guest@localhost:5672";

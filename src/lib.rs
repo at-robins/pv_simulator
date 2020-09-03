@@ -60,6 +60,8 @@ pub fn simulate_pv_and_write_results_to_file<U: Into<String>, P: AsRef<Path>>(
     if let Err(err) = pv_simulate_and_write.join() {
         panic!("The pv simulator thread paniced: {:?}", err);
     }
+    // Print a small notification that the simulation was finished.
+    println!("    Simulation completed!");
 }
 
 /// Compares two floating point numbers for non-exact equality.
@@ -69,7 +71,7 @@ pub fn simulate_pv_and_write_results_to_file<U: Into<String>, P: AsRef<Path>>(
 ///
 /// * `first` - the first floating point number
 /// * `second` - the second floating point number
-pub fn float_compare_non_exact(first: f64, second: f64) -> bool {
+fn float_compare_non_exact(first: f64, second: f64) -> bool {
     // Naive implementation for this specific simulation.
     // Precision for at least 6 decimal places is required.
     // Corner cases are irrelevant for this simulation as
