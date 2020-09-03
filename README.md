@@ -33,3 +33,10 @@ To simulate 24 hours in intervalls of 5 seconds, using the message broker at URL
 cd path/to/pv_simulator
 python3 pv_simulator_wrapper.py -s 5 -l 24 -b "amqp://guest:guest@localhost:5672" -o "./pv_simulation_output.json"
 ```
+
+## Output File Format
+The output file is a JSON formatted list of records. Each record contains the following items:
+- ```time_stamp```: an ISO 8601 timestamp
+- ```meter_power_consumption```: the power consumption in watt reported by the meter at the specified time point
+- ```pv_power_output```: the power output in watt reported by the photovoltaic component at the specified time point
+- ```total_power_output```: the total power output after substraction of the reported power conspumtion in watt at the specified time point
