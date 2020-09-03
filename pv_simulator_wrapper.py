@@ -1,5 +1,5 @@
 """A python wrapper for command line argument parsing and calling of
-the rust library for simulation of """
+the rust library for simulation of a photovoltaic component."""
 from argparse import ArgumentParser
 import pv_simulator
 

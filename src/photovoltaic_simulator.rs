@@ -129,7 +129,7 @@ fn pv_simulation_function(time_of_day: NaiveTime) -> f64 {
         // Scale the output to the expected power in watt.
         let scaling = 1650.0;
         // The parameters a and b were roughly approximated according to
-        // the diagramm supplied in the exercise description.
+        // the diagram supplied in the exercise description.
         let simulated_output = kumaraswamy_pdf(2.8, 3.3, x) * scaling;
         // Add some random noise to the simulated data.
         let jitter = thread_rng().gen_range(0.99, 1.01);
@@ -229,11 +229,11 @@ mod tests {
     }
 
     #[test]
-    /// Tests if the function `pv_simulation_function` produces output according to the diagramm
+    /// Tests if the function `pv_simulation_function` produces output according to the diagram
     /// displayed in the exercise's description. Indirectly also tests the function
     /// `kumaraswamy_pdf`.
     fn test_pv_simulation_function() {
-        // Test are performed according to the diagramm displayed in the exercise's description.
+        // Test are performed according to the diagram displayed in the exercise's description.
 
         // No output before dawn.
         {
@@ -284,7 +284,7 @@ mod tests {
     /// # Parameters
     ///
     /// * `simulated` - the simulation result
-    /// * `expected` - the reference obtained from the diagramm in the exercise's description
+    /// * `expected` - the reference obtained from the diagram in the exercise's description
     fn float_compare_pv_power_output(simulated: f64, expected: f64) -> bool {
         // Allow 10% variance.
         (1.0 - (simulated / expected)).abs() <= 0.1
