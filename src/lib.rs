@@ -91,7 +91,7 @@ pub fn simulate_pv_and_write_results_to_file<U: Into<String>, P: AsRef<Path>>(
     });
 
     // The second thread is the pv simulator that gets the power consumption from
-    // the broker auguments it and writes the results to a file.
+    // the broker, augments it and writes the results to a file.
     let pv_simulate_and_write = thread::spawn(move || {
         let mut simulator = PvSimulator::new(broker_url_pv);
         if let Err(err) = simulator.listen_to_broker() {

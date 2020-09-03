@@ -37,7 +37,7 @@ def main():
         "--output",
         dest="output",
         default="./pv_simulation_output.json",
-        help="simulation output file",
+        help="simulation output file in JSON format",
         metavar="OUT"
     )
     args = parser.parse_args()

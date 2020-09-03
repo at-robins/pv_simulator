@@ -33,6 +33,7 @@ To simulate 24 hours in intervalls of 5 seconds, using the message broker at URL
 cd path/to/pv_simulator
 python3 pv_simulator_wrapper.py -s 5 -l 24 -b "amqp://guest:guest@localhost:5672" -o "./pv_simulation_output.json"
 ```
+The programm will show a ```Simulation completed!``` message once it is finished.
 
 ## Output File Format
 The output file is a JSON formatted list of records. Each record contains the following items:
