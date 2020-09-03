@@ -29,20 +29,15 @@ pub fn simulate_pv_and_write_results_to_file<U: Into<String>, P: AsRef<Path>>(
         // Unwrapping is not problematic as we know the upper bound
         // to be positive and finite.
         let meter = Meter::new(9000.0, broker_url_meter).unwrap();
+        // Setup the time frame to be simulated.
+        let simulation_time = SimulatedDateTime::new(stride, simulation_length);
         // Run the simulation.
-        for time_point in SimulatedDateTime::new(stride, simulation_length) {
-            // Typically the sampling time point would come from the meter itself,
-            // but here we are using fixed simulated time steps.
-            if let Err(err) = meter.publish_sample(time_point) {
-                // Use panic! to simplify function handling by the Python
-                // wrapper. If this would be an actual library it should
-                // return the result for proper error propagation.
-                // This holds true for all subsequent code blocks.
-                panic!("The message could not be published: {:?}", err);
-            }
-        }
-        if let Err(err) = meter.publish_simulation_end() {
-            panic!("The simulation could not be ended: {:?}", err);
+        if let Err(err) = meter.publish_samples_to_broker_until(simulation_time) {
+            // Use panic! to simplify function handling by the Python
+            // wrapper. If this would be an actual library it should
+            // return the result for proper error propagation.
+            // This holds true for all subsequent code blocks.
+            panic!("The meter simulation failed: {:?}", err);
         }
     });
 

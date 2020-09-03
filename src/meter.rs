@@ -53,38 +53,46 @@ impl Meter {
         }
     }
 
-    /// Publishes the specified message to the broker.
+    /// Publishes the messages of sampled values to the broker for the duration of the
+    /// simulation time frame.
     ///
-    /// * `message` - the message to publish
-    fn publish_to_broker(&self, message: BrokerMessage) -> Result<(), PvError>{
+    /// * `simulation_time` - the time frame that is simulated
+    pub fn publish_samples_to_broker_until(&self, simulation_time: SimulatedDateTime) -> Result<(), PvError> {
         // Open an insecure connection to omit OpenSSL as dependency for
         // this example.
         let mut connection = Connection::insecure_open(&self.broker_url)?;
         let channel = connection.open_channel(None)?;
         let exchange = Exchange::direct(&channel);
+        for time_point in simulation_time {
+            let message = self.sample_message(time_point)?;
+            self.publish_to_broker(message, &exchange)?;
+        }
+        // Notifies clients that the simulation has finished.
+        self.publish_to_broker(BrokerMessage::simulation_end_message(), &exchange)?;
+        channel.close()?;
+        Ok(())
+    }
+
+    /// Publishes the specified message to the broker.
+    ///
+    /// * `message` - the message to publish
+    /// * `exchange` - the exchange to use for publishing
+    fn publish_to_broker(&self, message: BrokerMessage, exchange: &Exchange) -> Result<(), PvError>{
         // JSON, as widely used format, is exploited for serialisation to be agnostic
         // to the other parts of the system.
         // WARNING: serde_json does currently not support native bit precision floating point
         // serialisation. This is ignored here for the sake of simplicity.
         let serialised_message = serde_json::to_vec(&message)?;
         exchange.publish(Publish::new(&serialised_message, METER_ROUTING_KEY))?;
-        channel.close()?;
         Ok(())
     }
 
-    /// Samples a random value from the `Meter`, publishes it to the broker and returns it.
+    /// Samples a random value from the `Meter` and returns an according time stamped message.
     ///
     /// * `sampling_time` - the time point of sampling
-    pub fn publish_sample(&self, sampling_time: DateTime<Utc>) -> Result<f64, PvError> {
+    fn sample_message(&self, sampling_time: DateTime<Utc>) -> Result<BrokerMessage, PvError> {
         let sample = self.sample();
-        let message = BrokerMessage::new(sample, sampling_time)?;
-        self.publish_to_broker(message)?;
-        Ok(sample)
-    }
-
-    /// Notifies clients that the simulation has finished.
-    pub fn publish_simulation_end(&self) -> Result<(), PvError> {
-        self.publish_to_broker(BrokerMessage::simulation_end_message())
+        BrokerMessage::new(sample, sampling_time)
     }
 }
 
@@ -144,9 +152,9 @@ impl BrokerMessage {
 #[cfg(test)]
 mod tests {
     use amiquip::{Connection, ConsumerMessage, ConsumerOptions, QueueDeclareOptions};
+    use chrono::Duration;
     use serial_test::serial;
     use super::*;
-    use super::super::float_compare_non_exact;
 
     #[test]
     /// Tests if the function `new` of the `Meter` struct only creates valid `Meter`s.
@@ -181,20 +189,16 @@ mod tests {
 
     #[test]
     #[serial]
-    /// Tests if the functions `publish_sample` and `publish_simulation_end` of the `Meter` struct
-    /// correctly send messages to the broker.
-    fn test_meter_publish() {
+    /// Tests if the function `publish_samples_to_broker_until` of the `Meter` struct
+    /// correctly sends messages to the broker. Indirectly test `publish_to_broker`.
+    fn test_meter_publish_samples_to_broker_until() {
         let upper_bound = 10.0;
         let url = "amqp://guest:guest@localhost:5672";
         let meter = Meter::new(upper_bound, url).unwrap();
-        let mut samples = Vec::new();
-        for _ in 0..50 {
-            let time = Utc::now();
-            let sample = meter.publish_sample(time).unwrap();
-            samples.push((time, sample));
-        }
-        // End the simulation.
-        meter.publish_simulation_end().unwrap();
+        let time = SimulatedDateTime::new(Duration::seconds(1), Duration::minutes(1));
+        let time_stamps: Vec<DateTime<Utc>> = time.collect();
+        // Publish random messages.
+        meter.publish_samples_to_broker_until(time).unwrap();
         // Setup a consumer for the sent messages.
         let mut connection = Connection::insecure_open(url).unwrap();
         let channel = connection.open_channel(None).unwrap();
@@ -206,15 +210,18 @@ mod tests {
                     let message: BrokerMessage = serde_json::from_slice(&delivery.body).unwrap();
                     consumer.ack(delivery).unwrap();
                     if message.is_simulation_end() {
+                        // Make sure all messages are read before the simulation is ended.
+                        assert_eq!(i, time_stamps.len());
                         consumer.cancel().unwrap();
                     } else {
                         let message_values = (
                             message.time_stamp.unwrap(),
                             message.power_consumption.unwrap()
                         );
-                        assert_eq!(samples[i].0, message_values.0);
-                        // Do not assume bit exact serialisation.
-                        assert!(float_compare_non_exact(samples[i].1, message_values.1));
+                        assert_eq!(time_stamps[i], message_values.0);
+                        // We do not know the content of the messages, so we test for general
+                        // soundness.
+                        assert!(message_values.1 <= upper_bound);
                     }
                 },
                 ConsumerMessage::ClientCancelled => break,
