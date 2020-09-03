@@ -1,12 +1,52 @@
 extern crate chrono;
+extern crate cpython;
 extern crate serial_test;
 
 use chrono::Duration;
+use cpython::{PyObject, PyResult, Python, py_module_initializer, py_fn};
 use meter::Meter;
 use photovoltaic_simulator::PvSimulator;
 use simulated_time::SimulatedDateTime;
 use std::path::{Path, PathBuf};
 use std::thread;
+
+// Add bindings for the Python wrapper.
+py_module_initializer!(pv_simulator, |py, m| {
+    m.add(py, "__doc__", "This module simulates a photovoltaic component in Rust.")?;
+    m.add(py, "simulate_pv_and_write_results_to_file", py_fn!(
+        py,
+        simulate_pv_and_write_results_to_file_py(
+            stride_in_sec: f64,
+            simulation_length_in_h: f64,
+            broker_url: String,
+            output_path: String
+        )
+    ))?;
+    Ok(())
+});
+
+/// The Python wrapper function corresponding to `simulate_pv_and_write_results_to_file`.
+///
+/// # Parameters
+/// * `stride` - the simulated time steps in seconds
+/// * `simulation_length` - the total simulation length in hours
+/// * `broker_url` - the URL of the RabbitMQ message broker
+/// * `output_path` - the path to the output file
+///
+/// # Panics
+///
+/// If any part of the simulation fails.
+fn simulate_pv_and_write_results_to_file_py(
+    py: Python,
+    stride_in_sec: f64,
+    simulation_length_in_h: f64,
+    broker_url: String,
+    output_path: String) -> PyResult<PyObject> {
+        let stride = Duration::nanoseconds((stride_in_sec * 1_000_000_000.0) as i64);
+        let simulation_length = Duration::nanoseconds((simulation_length_in_h * 3_600_000_000_000.0) as i64);
+        simulate_pv_and_write_results_to_file(stride, simulation_length, broker_url, output_path);
+        Ok(Python::None(py))
+    }
 
 /// Simulates the `Meter` and photovoltaic component as specified by the exercise's description.
 /// The results are written to the specified file.
