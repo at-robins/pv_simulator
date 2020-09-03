@@ -157,7 +157,7 @@ fn normalised_time_of_day(time: NaiveTime) -> f64 {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Serialize, Deserialize)]
-struct Record {
+pub struct Record {
     time_stamp: DateTime<Utc>,
     meter_power_consumption: f64,
     pv_power_output: f64,
@@ -184,6 +184,27 @@ impl Record {
             // results in subtraction.
             total_power_output: pv_power_output - meter_power_consumption,
         }
+    }
+
+    // Returns the time stamp of this `Record`.
+    pub fn time_stamp(&self) -> DateTime<Utc> {
+        self.time_stamp
+    }
+
+    // Returns the power consumption of this `Record` indicated by the corrsponding `Meter`.
+    pub fn power_consumption(&self) -> f64 {
+        self.meter_power_consumption
+    }
+
+    // Returns the power output of this `Record` indicated by the corrsponding `PvSimulator`.
+    pub fn power_output(&self) -> f64 {
+        self.pv_power_output
+    }
+
+    // Returns the total power output of this `Record` indicated by the corrsponding `Meter`
+    // and `PvSimulator`.
+    pub fn total_power_output(&self) -> f64 {
+        self.total_power_output
     }
 }
 

@@ -11,6 +11,18 @@ use simulated_time::SimulatedDateTime;
 use std::path::{Path, PathBuf};
 use std::thread;
 
+/// Simulates the `Meter` and photovoltaic component as specified by the exercise's description.
+/// The results are written to the specified file.
+///
+/// # Parameters
+/// * `stride` - the simulated time steps
+/// * `simulation_length` - the total simulation length
+/// * `broker_url` - the URL of the RabbitMQ message broker
+/// * `output_path` - the path to the output file
+///
+/// # Panics
+///
+/// If any part of the simulation fails.
 pub fn simulate_pv_and_write_results_to_file<U: Into<String>, P: AsRef<Path>>(
     stride: Duration,
     simulation_length: Duration,
@@ -81,23 +93,50 @@ fn float_compare_non_exact(first: f64, second: f64) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use chrono::{DateTime, Utc};
     use serial_test::serial;
+    use std::fs::File;
     use super::*;
+    use super::photovoltaic_simulator::Record;
 
     #[test]
     #[serial]
-    /// Tests if the function `float_compare_non_exact` compares nearly equal floating point
-    /// values correctly.
+    /// Tests if the function `simulate_pv_and_write_results_to_file` performes correctly.
     fn test_simulate_pv_and_write_results_to_file() {
         let output = "./test_output.json";
         let url = "amqp://guest:guest@localhost:5672";
         let stride = Duration::seconds(5);
         let simulation_time = Duration::days(1);
+        let time_stamps: Vec<DateTime<Utc>> = SimulatedDateTime::new(stride, simulation_time)
+            .collect();
         simulate_pv_and_write_results_to_file(
             stride,
             simulation_time,
             url,
-            output)
+            output
+        );
+        let records: Vec<Record> = serde_json::from_reader(File::open(output).unwrap()).unwrap();
+        // Make sure the expected amount of records were outputted.
+        assert_eq!(records.len(), time_stamps.len());
+        // Test everything that was specified in the exercise's description.
+        for (i, record) in records.iter().enumerate() {
+            // The check is only performed at second precision since there is a small
+            // delay between creation of reference and tested simulated time.
+            assert_eq!(record.time_stamp().timestamp(), time_stamps[i].timestamp());
+            // Power consumption must be between 0 and 9000 watt.
+            assert!(record.power_consumption() <= 9000.0 && record.power_consumption() >= 0.0);
+            // Th diagram showed a rough output range of 0 to 3500 watt.
+            assert!(record.power_output() <= 3500.0 && record.power_output() >= 0.0);
+            // Power consumption and ouput are sign-inverse and it was not specified if total
+            // output or consumption is to be computed, so the absolute difference of both
+            // values is compared with 6 decimal places of precision.
+            assert!(float_compare_non_exact(
+                record.total_power_output().abs(),
+                (record.power_output() - record.power_consumption()).abs()
+            ))
+        }
+        // Remove the test output file.
+        std::fs::remove_file(output).expect("The test output file could not be removed.");
     }
 
     #[test]
