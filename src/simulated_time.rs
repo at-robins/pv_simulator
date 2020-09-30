@@ -28,7 +28,12 @@ impl SimulatedDateTime {
             panic!("The simulated time must increase strictly monoton!");
         }
         let starting_time = Utc::now();
-        SimulatedDateTime{starting_time, current_time: starting_time, stride, max_simulated_time}
+        SimulatedDateTime {
+            starting_time,
+            current_time: starting_time,
+            stride,
+            max_simulated_time,
+        }
     }
 
     /// Increments the `SimulatedDateTime` by its specified stride and returns the
@@ -66,7 +71,7 @@ mod tests {
         // Simulate the initial time point.
         assert_eq!(Some(expected_date_time), simulated_time.current_date_time());
         // Simulate all further possible time points.
-        for _ in 0..5000{
+        for _ in 0..5000 {
             // AddAssign is not implemented for DateTime.
             expected_date_time = expected_date_time + stride;
             assert_eq!(Some(expected_date_time), simulated_time.current_date_time());
@@ -85,7 +90,10 @@ mod tests {
             .map(|i| start_date_time + Duration::seconds(i * 5))
             .collect();
         // The maximum simulation length was reached.
-        assert_eq!(expected_dates, simulated_time.collect::<Vec<DateTime<Utc>>>());
+        assert_eq!(
+            expected_dates,
+            simulated_time.collect::<Vec<DateTime<Utc>>>()
+        );
     }
 
     #[test]

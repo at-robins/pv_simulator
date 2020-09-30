@@ -1,14 +1,14 @@
 //! The `photovoltaic_simulator` module allows simulation of photovoltaic power output.
 extern crate rand;
 
+use super::meter::{BrokerMessage, METER_ROUTING_KEY};
+use super::pv_error::PvError;
 use amiquip::{Connection, ConsumerMessage, ConsumerOptions, QueueDeclareOptions};
 use chrono::{DateTime, NaiveTime, Timelike, Utc};
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::fs::{create_dir_all, File};
 use std::path::Path;
-use super::meter::{BrokerMessage, METER_ROUTING_KEY};
-use super::pv_error::PvError;
 
 /// A `PvSimulator` that mimics power output of a photovoltaic system.
 #[derive(Debug, PartialEq, Clone)]
@@ -25,9 +25,9 @@ impl PvSimulator {
     ///
     /// * `broker_url` - the url of the broker
     pub fn new<U: Into<String>>(broker_url: U) -> Self {
-        PvSimulator{
+        PvSimulator {
             broker_url: broker_url.into(),
-            records: Vec::new()
+            records: Vec::new(),
         }
     }
 
@@ -53,12 +53,15 @@ impl PvSimulator {
                         let record = self.message_to_record(message)?;
                         self.records.push(record);
                     }
-                },
+                }
                 // The consumer is cancelled once the simulation ended.
                 ConsumerMessage::ClientCancelled => break,
-                other => return Err(
-                    PvError::InternalError(format!("Consumer did not expect: {:?}", other))
-                ),
+                other => {
+                    return Err(PvError::InternalError(format!(
+                        "Consumer did not expect: {:?}",
+                        other
+                    )))
+                }
             }
         }
         connection.close()?;
@@ -73,11 +76,13 @@ impl PvSimulator {
     /// * `path` - the path to the output file
     pub fn write_records_to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), PvError> {
         // Make sure there is a last path component that can be written to.
-        let parent_directory = path.as_ref()
+        let parent_directory = path
+            .as_ref()
             .parent()
-            .ok_or(PvError::InternalError(
-                format!("{:?} does not point to a file.", path.as_ref())
-            ))?;
+            .ok_or(PvError::InternalError(format!(
+                "{:?} does not point to a file.",
+                path.as_ref()
+            )))?;
         // Create parent directories.
         create_dir_all(parent_directory)?;
         // Default writing options are fine for file creation.
@@ -95,16 +100,22 @@ impl PvSimulator {
     fn message_to_record(&self, message: BrokerMessage) -> Result<Record, PvError> {
         if let Some(consumption) = message.power_consumption() {
             if let Some(time) = message.time_stamp() {
-                Ok(Record::new(time, consumption, pv_simulation_function(time.time())))
-            } else {
-                Err(PvError::InternalError(
-                    format!("No time stamp was specified for message: {:?}", message)
+                Ok(Record::new(
+                    time,
+                    consumption,
+                    pv_simulation_function(time.time()),
                 ))
+            } else {
+                Err(PvError::InternalError(format!(
+                    "No time stamp was specified for message: {:?}",
+                    message
+                )))
             }
         } else {
-            Err(PvError::InternalError(
-                format!("No power consumption was specified for message: {:?}", message)
-            ))
+            Err(PvError::InternalError(format!(
+                "No power consumption was specified for message: {:?}",
+                message
+            )))
         }
     }
 }
@@ -182,7 +193,7 @@ impl Record {
     /// * `pv_power_output` - the power output as simulated by the corresponding
     /// photovoltaic component
     fn new(time_stamp: DateTime<Utc>, meter_power_consumption: f64, pv_power_output: f64) -> Self {
-        Record{
+        Record {
             time_stamp,
             meter_power_consumption,
             pv_power_output,
@@ -217,15 +228,18 @@ impl Record {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::float_compare_non_exact;
+    use super::*;
 
     #[test]
     /// Tests if the function `normalised_time_of_day` performes a correct normalisation to hours.
     fn test_normalised_time_of_day() {
         let time = NaiveTime::from_hms_nano(20, 15, 36, 360_000_000);
         let expected = 20.2601;
-        assert!(float_compare_non_exact(expected, normalised_time_of_day(time)));
+        assert!(float_compare_non_exact(
+            expected,
+            normalised_time_of_day(time)
+        ));
     }
 
     #[test]

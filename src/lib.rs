@@ -3,7 +3,7 @@ extern crate cpython;
 extern crate serial_test;
 
 use chrono::Duration;
-use cpython::{PyObject, PyResult, Python, py_module_initializer, py_fn};
+use cpython::{py_fn, py_module_initializer, PyObject, PyResult, Python};
 use meter::Meter;
 use photovoltaic_simulator::PvSimulator;
 use simulated_time::SimulatedDateTime;
@@ -12,16 +12,24 @@ use std::thread;
 
 // Add bindings for the Python wrapper.
 py_module_initializer!(pv_simulator, |py, m| {
-    m.add(py, "__doc__", "This module simulates a photovoltaic component in Rust.")?;
-    m.add(py, "simulate_pv_and_write_results_to_file", py_fn!(
+    m.add(
         py,
-        simulate_pv_and_write_results_to_file_py(
-            stride_in_sec: f64,
-            simulation_length_in_h: f64,
-            broker_url: String,
-            output_path: String
-        )
-    ))?;
+        "__doc__",
+        "This module simulates a photovoltaic component in Rust.",
+    )?;
+    m.add(
+        py,
+        "simulate_pv_and_write_results_to_file",
+        py_fn!(
+            py,
+            simulate_pv_and_write_results_to_file_py(
+                stride_in_sec: f64,
+                simulation_length_in_h: f64,
+                broker_url: String,
+                output_path: String
+            )
+        ),
+    )?;
     Ok(())
 });
 
@@ -41,12 +49,14 @@ fn simulate_pv_and_write_results_to_file_py(
     stride_in_sec: f64,
     simulation_length_in_h: f64,
     broker_url: String,
-    output_path: String) -> PyResult<PyObject> {
-        let stride = Duration::nanoseconds((stride_in_sec * 1_000_000_000.0) as i64);
-        let simulation_length = Duration::nanoseconds((simulation_length_in_h * 3_600_000_000_000.0) as i64);
-        simulate_pv_and_write_results_to_file(stride, simulation_length, broker_url, output_path);
-        Ok(Python::None(py))
-    }
+    output_path: String,
+) -> PyResult<PyObject> {
+    let stride = Duration::nanoseconds((stride_in_sec * 1_000_000_000.0) as i64);
+    let simulation_length =
+        Duration::nanoseconds((simulation_length_in_h * 3_600_000_000_000.0) as i64);
+    simulate_pv_and_write_results_to_file(stride, simulation_length, broker_url, output_path);
+    Ok(Python::None(py))
+}
 
 /// Simulates the `Meter` and photovoltaic component as specified by the exercise's description.
 /// The results are written to the specified file.
@@ -64,8 +74,8 @@ pub fn simulate_pv_and_write_results_to_file<U: Into<String>, P: AsRef<Path>>(
     stride: Duration,
     simulation_length: Duration,
     broker_url: U,
-    output_path: P) {
-
+    output_path: P,
+) {
     // Use two different threads to simulate different, independent components of the system.
     // Variables for moving into the threads are created here.
     let broker_url_meter: String = broker_url.into();
@@ -124,17 +134,22 @@ pub fn float_compare_non_exact(first: f64, second: f64) -> bool {
     // Naive implementation for this specific simulation.
     // Precision for at least 6 decimal places is required.
     // Corner cases are irrelevant for this simulation as
-    // they are check for during broker message creation.
+    // they are checked for during broker message creation.
     (first - second).abs() <= 0.000_000_1
 }
 
+mod meter;
+mod photovoltaic_simulator;
+mod pv_error;
+mod simulated_time;
+
 #[cfg(test)]
 mod tests {
+    use super::photovoltaic_simulator::Record;
+    use super::*;
     use chrono::{DateTime, Utc};
     use serial_test::serial;
     use std::fs::File;
-    use super::*;
-    use super::photovoltaic_simulator::Record;
 
     #[test]
     #[serial]
@@ -144,14 +159,9 @@ mod tests {
         let url = "amqp://guest:guest@localhost:5672";
         let stride = Duration::seconds(5);
         let simulation_time = Duration::days(1);
-        let time_stamps: Vec<DateTime<Utc>> = SimulatedDateTime::new(stride, simulation_time)
-            .collect();
-        simulate_pv_and_write_results_to_file(
-            stride,
-            simulation_time,
-            url,
-            output
-        );
+        let time_stamps: Vec<DateTime<Utc>> =
+            SimulatedDateTime::new(stride, simulation_time).collect();
+        simulate_pv_and_write_results_to_file(stride, simulation_time, url, output);
         let records: Vec<Record> = serde_json::from_reader(File::open(output).unwrap()).unwrap();
         // Make sure the expected amount of records were outputted.
         assert_eq!(records.len(), time_stamps.len());
@@ -180,14 +190,14 @@ mod tests {
     /// Tests if the function `float_compare_non_exact` compares nearly equal floating point
     /// values correctly.
     fn test_float_compare_non_exact() {
-        // Test equal equations.
+        // Test equal values.
         {
             let a = 0.15 + 0.15;
             let b = 0.1 + 0.2;
             assert!(a != b);
             assert!(float_compare_non_exact(a, b));
         }
-        // Test inequal equations.
+        // Test inequal values.
         {
             let a = 0.1 + 0.15;
             let b = 0.1 + 0.2;
@@ -196,8 +206,3 @@ mod tests {
         }
     }
 }
-
-mod meter;
-mod pv_error;
-mod simulated_time;
-mod photovoltaic_simulator;

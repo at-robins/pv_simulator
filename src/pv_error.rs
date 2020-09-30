@@ -10,7 +10,7 @@ pub enum PvError {
     /// An error regarding the RabbitMQ message broker.
     RabbitMqError(amiquip::Error),
     /// An input/output related error.
-    IoError(std::io::Error)
+    IoError(std::io::Error),
 }
 
 impl From<serde_json::Error> for PvError {

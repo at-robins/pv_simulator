@@ -1,12 +1,12 @@
 //! The `meter` module allows simulation of power consumption.
 extern crate rand;
 
-use amiquip::{Connection, Exchange, Publish};
-use chrono::{DateTime, Utc};
-use rand::{Rng, thread_rng};
-use serde::{Deserialize, Serialize};
 use super::pv_error::PvError;
 use super::SimulatedDateTime;
+use amiquip::{Connection, Exchange, Publish};
+use chrono::{DateTime, Utc};
+use rand::{thread_rng, Rng};
+use serde::{Deserialize, Serialize};
 
 /// The routing key for the RabbitMQ message broker.
 pub const METER_ROUTING_KEY: &str = "meter_queue";
@@ -30,14 +30,15 @@ impl Meter {
     /// * `broker_url` - the url of the broker
     pub fn new<U: Into<String>>(consumption_bound: f64, broker_url: U) -> Result<Self, PvError> {
         if consumption_bound.is_finite() && consumption_bound.is_sign_positive() {
-            Ok(Meter{
+            Ok(Meter {
                 consumption_bound,
-                broker_url: broker_url.into()
+                broker_url: broker_url.into(),
             })
         } else {
-            Err(PvError::InternalError(
-                format!("{} is not a positive finite number.", consumption_bound)
-            ))
+            Err(PvError::InternalError(format!(
+                "{} is not a positive finite number.",
+                consumption_bound
+            )))
         }
     }
 
@@ -57,7 +58,10 @@ impl Meter {
     /// simulation time frame.
     ///
     /// * `simulation_time` - the time frame that is simulated
-    pub fn publish_samples_to_broker_until(&self, simulation_time: SimulatedDateTime) -> Result<(), PvError> {
+    pub fn publish_samples_to_broker_until(
+        &self,
+        simulation_time: SimulatedDateTime,
+    ) -> Result<(), PvError> {
         // Open an insecure connection to omit OpenSSL as dependency for
         // this example.
         let mut connection = Connection::insecure_open(&self.broker_url)?;
@@ -85,7 +89,11 @@ impl Meter {
     ///
     /// * `message` - the message to publish
     /// * `exchange` - the exchange to use for publishing
-    fn publish_to_broker(&self, message: BrokerMessage, exchange: &Exchange) -> Result<(), PvError>{
+    fn publish_to_broker(
+        &self,
+        message: BrokerMessage,
+        exchange: &Exchange,
+    ) -> Result<(), PvError> {
         // JSON, as widely used format, is exploited for serialisation to be agnostic
         // to the other parts of the system.
         // WARNING: serde_json does currently not support native bit precision floating point
@@ -123,19 +131,20 @@ impl BrokerMessage {
     /// * `time_stamp` - the sampling time point
     pub fn new(power_consumption: f64, time_stamp: DateTime<Utc>) -> Result<Self, PvError> {
         if power_consumption.is_finite() && power_consumption.is_sign_positive() {
-            Ok(BrokerMessage{
+            Ok(BrokerMessage {
                 power_consumption: Some(power_consumption),
                 time_stamp: Some(time_stamp),
             })
         } else {
-            Err(PvError::InternalError(
-                format!("{} is not a positive finite number.", power_consumption)
-            ))
+            Err(PvError::InternalError(format!(
+                "{} is not a positive finite number.",
+                power_consumption
+            )))
         }
     }
 
     pub fn simulation_end_message() -> Self {
-        BrokerMessage{
+        BrokerMessage {
             power_consumption: None,
             time_stamp: None,
         }
@@ -159,10 +168,10 @@ impl BrokerMessage {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use amiquip::{Connection, ConsumerMessage, ConsumerOptions, QueueDeclareOptions};
     use chrono::Duration;
     use serial_test::serial;
-    use super::*;
 
     #[test]
     /// Tests if the function `new` of the `Meter` struct only creates valid `Meter`s.
@@ -211,7 +220,9 @@ mod tests {
         // Setup a consumer for the sent messages.
         let mut connection = Connection::insecure_open(url).unwrap();
         let channel = connection.open_channel(None).unwrap();
-        let queue = channel.queue_declare(METER_ROUTING_KEY, QueueDeclareOptions::default()).unwrap();
+        let queue = channel
+            .queue_declare(METER_ROUTING_KEY, QueueDeclareOptions::default())
+            .unwrap();
         let consumer = queue.consume(ConsumerOptions::default()).unwrap();
         for (i, message) in consumer.receiver().iter().enumerate() {
             match message {
@@ -225,14 +236,14 @@ mod tests {
                     } else {
                         let message_values = (
                             message.time_stamp.unwrap(),
-                            message.power_consumption.unwrap()
+                            message.power_consumption.unwrap(),
                         );
                         assert_eq!(time_stamps[i], message_values.0);
                         // We do not know the content of the messages, so we test for general
                         // soundness.
                         assert!(message_values.1 <= upper_bound);
                     }
-                },
+                }
                 ConsumerMessage::ClientCancelled => break,
                 other => panic!("Consumer did not expect: {:?}", other),
             }
@@ -277,7 +288,7 @@ mod tests {
         let time = Utc::now();
         // A conventional message.
         {
-            let message = BrokerMessage{
+            let message = BrokerMessage {
                 power_consumption: Some(consumption),
                 time_stamp: Some(time),
             };
@@ -285,7 +296,7 @@ mod tests {
         }
         // Time stamp is not strictly required.
         {
-            let message = BrokerMessage{
+            let message = BrokerMessage {
                 power_consumption: Some(consumption),
                 time_stamp: None,
             };
@@ -293,14 +304,14 @@ mod tests {
         }
         // Simulation end is indicated by absent power values.
         {
-            let message = BrokerMessage{
+            let message = BrokerMessage {
                 power_consumption: None,
                 time_stamp: Some(time),
             };
             assert!(message.is_simulation_end());
         }
         {
-            let message = BrokerMessage{
+            let message = BrokerMessage {
                 power_consumption: None,
                 time_stamp: None,
             };
